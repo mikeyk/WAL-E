@@ -177,6 +177,13 @@ def main(argv=None):
         'tunable number of bytes per second', dest='rate_limit',
         metavar='BYTES_PER_SECOND',
         type=int, default=None)
+    backup_push_parser.add_argument(
+        '--pg-is-stopped-replica',
+        help='Set to true if backing up a PG cluster that is in a stopped state '
+        '(for example, a replica that you stop/start when taking a backup)',
+        dest='pg_is_stopped_replica',
+        metavar='PG_IS_STOPPED_REPLICA',
+        type=bool, default=False)
 
     wal_fetch_parser = subparsers.add_parser(
         'wal-fetch', help='fetch a WAL file from S3',
@@ -287,7 +294,8 @@ def main(argv=None):
         elif subcommand == 'backup-list':
             backup_cxt.backup_list(query=args.QUERY, detail=args.detail)
         elif subcommand == 'backup-push':
-            external_program_check([LZOP_BIN, PSQL_BIN, MBUFFER_BIN])
+            external_programs = [LZOP_BIN, PSQL_BIN, MBUFFER_BIN] if not args.pg_is_stopped_replica else [LZOP_BIN, MBUFFER_BIN]
+            external_program_check(external_programs)
             rate_limit = args.rate_limit
             if rate_limit is not None and rate_limit < 8192:
                 logger.error(
@@ -297,8 +305,11 @@ def main(argv=None):
                           'greater than 8192'))
                 sys.exit(1)
 
+            is_stopped_replica = args.pg_is_stopped_replica
             backup_cxt.database_s3_backup(
-                args.PG_CLUSTER_DIRECTORY, rate_limit=rate_limit,
+                args.PG_CLUSTER_DIRECTORY,
+                rate_limit=rate_limit,
+                is_stopped_replica=is_stopped_replica,
                 pool_size=args.pool_size)
         elif subcommand == 'wal-fetch':
             external_program_check([LZOP_BIN])
