@@ -44,6 +44,9 @@ class PgControlDataParser(object):
                 controldata[key.strip()] = val.strip()
         return controldata
 
+    def controldata_bin(self):
+        return self._controldata_bin
+
     def pg_version(self):
         return self._pg_version
 

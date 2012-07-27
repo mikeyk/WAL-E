@@ -33,6 +33,7 @@ from wal_e.operator import s3_operator
 from wal_e.piper import popen_sp
 from wal_e.worker.psql_worker import PSQL_BIN, psql_csv_run
 from wal_e.worker.s3_worker import LZOP_BIN, MBUFFER_BIN
+from wal_e.worker.pg_controldata_worker import CONFIG_BIN, PgControlDataParser
 
 # TODO: Make controllable from userland
 log_help.configure(
@@ -294,7 +295,18 @@ def main(argv=None):
         elif subcommand == 'backup-list':
             backup_cxt.backup_list(query=args.QUERY, detail=args.detail)
         elif subcommand == 'backup-push':
-            external_programs = [LZOP_BIN, PSQL_BIN, MBUFFER_BIN] if not args.pg_is_stopped_replica else [LZOP_BIN, MBUFFER_BIN]
+            if args.pg_is_stopped_replica:
+                # we need to query pg_config first for the
+                # pg_controldata's bin location
+                external_program_check([CONFIG_BIN])
+                parser = PgControlDataParser(args.PG_CLUSTER_DIRECTORY)
+                controldata_bin = parser.controldata_bin()
+                external_programs = [
+                    LZOP_BIN,
+                    MBUFFER_BIN,
+                    controldata_bin]
+            else:
+                external_programs = [LZOP_BIN, PSQL_BIN, MBUFFER_BIN]
             external_program_check(external_programs)
             rate_limit = args.rate_limit
             if rate_limit is not None and rate_limit < 8192:
