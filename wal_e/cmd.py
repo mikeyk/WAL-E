@@ -179,11 +179,11 @@ def main(argv=None):
         metavar='BYTES_PER_SECOND',
         type=int, default=None)
     backup_push_parser.add_argument(
-        '--pg-is-stopped-replica',
+        '--while-offline',
         help='Set to true if backing up a PG cluster that is in a stopped state '
         '(for example, a replica that you stop/start when taking a backup)',
-        dest='pg_is_stopped_replica',
-        metavar='PG_IS_STOPPED_REPLICA',
+        dest='while_offline',
+        metavar='WHILE_OFFLINE',
         type=bool, default=False)
 
     wal_fetch_parser = subparsers.add_parser(
@@ -295,7 +295,7 @@ def main(argv=None):
         elif subcommand == 'backup-list':
             backup_cxt.backup_list(query=args.QUERY, detail=args.detail)
         elif subcommand == 'backup-push':
-            if args.pg_is_stopped_replica:
+            if args.while_offline:
                 # we need to query pg_config first for the
                 # pg_controldata's bin location
                 external_program_check([CONFIG_BIN])
@@ -317,11 +317,11 @@ def main(argv=None):
                           'greater than 8192'))
                 sys.exit(1)
 
-            is_stopped_replica = args.pg_is_stopped_replica
+            while_offline = args.while_offline
             backup_cxt.database_s3_backup(
                 args.PG_CLUSTER_DIRECTORY,
                 rate_limit=rate_limit,
-                is_stopped_replica=is_stopped_replica,
+                while_offline=while_offline,
                 pool_size=args.pool_size)
         elif subcommand == 'wal-fetch':
             external_program_check([LZOP_BIN])

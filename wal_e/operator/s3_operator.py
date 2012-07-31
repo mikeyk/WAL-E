@@ -311,15 +311,24 @@ class S3Backup(object):
 
         upload_good = False
         backup_stop_good = False
-        is_stopped_replica = False
-        if 'is_stopped_replica' in kwargs:
-            is_stopped_replica = kwargs.pop('is_stopped_replica')
+        while_offline = False
+        start_backup_info = None
+        if 'while_offline' in kwargs:
+            while_offline = kwargs.pop('while_offline')
 
         try:
-            if not is_stopped_replica:
+            if not while_offline:
                 start_backup_info = PgBackupStatements.run_start_backup()
                 version = PgBackupStatements.pg_version()['version']
             else:
+                if os.path.exists(os.path.join(data_directory, 'postmaster.pid')):
+                    raise UserException(
+                        msg='while_offline set, but pg looks to be running',
+                        detail='Found a postmaster.pid lockfile, and aborting',
+                        hint='Shut down postgres. If there is a stale lockfile, '
+                        'then remove it after being very sure postgres is not '
+                        'running.')
+
                 controldata = PgControlDataParser(data_directory)
                 start_backup_info = controldata.last_xlog_file_name_and_offset()
                 version = controldata.pg_version()
@@ -334,7 +343,7 @@ class S3Backup(object):
                             'but we have to wait anyway.  '
                             'See README: TODO about pg_cancel_backup'))
 
-            if not is_stopped_replica:
+            if not while_offline:
                 stop_backup_info = PgBackupStatements.run_stop_backup()
             else:
                 stop_backup_info = start_backup_info
