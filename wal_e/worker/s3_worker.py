@@ -624,13 +624,14 @@ class DeleteFromContext(object):
     def _maybe_delete_key(self, key, type_of_thing):
         url = 's3://{bucket}/{name}'.format(bucket=key.bucket.name,
                                             name=key.name)
+        bucket = self.s3_conn.get_bucket(self.layout.bucket_name())
         log_message = dict(
             msg='deleting {0}'.format(type_of_thing),
             detail='The key being deleted is {url}.'.format(url=url))
 
         if self.dry_run is False:
             logger.info(**log_message)
-            key.delete()
+            bucket.delete_key(key.name, version_id=key.version_id)
         elif self.dry_run is True:
             log_message['hint'] = ('This is only a dry run -- no actual data '
                                    'is being deleted')
@@ -685,7 +686,7 @@ class DeleteFromContext(object):
 
         # The base-backup sweep, deleting bulk data and metadata, but
         # not any wal files.
-        for key in bucket.list(prefix=self.layout.basebackups()):
+        for key in bucket.list_versions(prefix=self.layout.basebackups()):
             url = 's3://{bucket}/{name}'.format(bucket=key.bucket.name,
                                                 name=key.name)
             key_parts = key.name.split('/')
@@ -774,7 +775,7 @@ class DeleteFromContext(object):
         # the WAL-file sweep, deleting only WAL files, and not any
         # base-backup information.
         wal_key_depth = self.layout.wal_directory().count('/') + 1
-        for key in bucket.list(prefix=self.layout.wal_directory()):
+        for key in bucket.list_versions(prefix=self.layout.wal_directory()):
             url = 's3://{bucket}/{name}'.format(bucket=key.bucket.name,
                                                 name=key.name)
             key_parts = key.name.split('/')
